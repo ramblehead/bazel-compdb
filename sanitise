@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+/* global require process */
+
+const fs = require('fs');
+const path = require('path');
+const os = require("os");
+
+// command = "   	/usr/bin/gcc     -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -f\"no -canonical-system-headers\" -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I \"bazel- out/k8-fastbuild/bin/server/_virtual_includes/server\" -I'bazel-out/ k8-fastbuild/bin/external/wt/_virtual_includes/wt' -I bazel\\ -out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/genfiles -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/genfiles/external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/genfiles/external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/genfiles/external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp  /usr/bin/gcc ";
+
+// Old Bazel
+// command = "/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -fno-canonical-system-headers -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I bazel-out/k8-fastbuild/bin/server/_virtual_includes/server -I bazel-out/k8-fastbuild/bin/external/wt/_virtual_includes/wt -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/genfiles -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/genfiles/external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/genfiles/external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/genfiles/external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp";
+
+// New Bazel
+// command = "/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -fno-canonical-system-headers -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I bazel-out/k8-fastbuild/bin/server/_virtual_includes/server -I bazel-out/k8-fastbuild/bin/external/wt/_virtual_includes/wt -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp"
+
+// directory = "/home/rh/projects/s600-solution/wtx";
+// file = "server/wtx/SimpleComboBox.cpp";
+// bazelExecRoot = path.join(directory, 'bazel-' + path.basename(directory));
+
+const sanitise = ({command, file, directory}, bazelExecRoot) => {
+  command = command.trim(command);
+  if(!path.isAbsolute(file)) file = path.join(directory, file);
+
+  // Regexp selects quoted strings handling excape characters
+  let commandParts = command.split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
+
+  commandParts = commandParts.reduce((result, value) => {
+    let last;
+    if(result.length > 0) last = result[result.length - 1];
+    else last = '';
+    if(last === '"' || last === "'") {
+      result[result.length - 1] += value;
+    }
+    else if(value === '"' || value === "'") {
+      result.push(value);
+    }
+    else {
+      // Regexp selects non-white-space strings respecting escaped
+      // white-space symbols
+      result = result.concat(value.split(/([^\s](?:[^\s\\]|\\.)*)/g));
+    }
+    return result;
+  }, []);
+
+  commandParts = commandParts.reduce((result, value) => {
+    if(value === '') return result;
+    let last;
+    if(result.length > 0) last = result[result.length - 1];
+    else last = '';
+    if(last.match(/^(?:-I|-isystem|-iquote|-c|-x)\s*$/) ||
+       last.match(/=\s*$/) ||
+       value.match(/^\s+$/))
+    {
+      result[result.length - 1] += value;
+    }
+    else result.push(value);
+    return result;
+  }, []);
+
+  commandParts = commandParts.reduce((result, value) => {
+    let m = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
+    if(m) {
+      let absPath, relPath = m[2];
+      if(relPath === '.') return result;
+      relPath = relPath.replace(/^["']?(.+?)["']?$/, '$1');
+      if(path.isAbsolute(relPath)) absPath = relPath;
+      else {
+        absPath = path.join(directory, relPath);
+        if(!fs.existsSync(absPath)) path.join(bazelExecRoot, relPath);
+        if(fs.existsSync(absPath)) {
+          if(absPath.match(/\s/)) absPath = '"' + absPath + '"';
+          value = m[1] + ' ' + absPath + m[3];
+          result.push(value);
+        }
+      }
+      // else {
+      //   console.log(`----- `, absPath);
+      // }
+    }
+    else result.push(value);
+    return result;
+  }, []);
+
+  command = commandParts.join('');
+
+  return {command, file, directory};
+};
+
+let args = process.argv.slice(2);
+
+if(args.length != 2) {
+  console.log('Usage: sanitise ' +
+              'path/to/compile_commands.json ' +
+              'bazel/execution/root');
+  process.exit();
+}
+
+let commandsFilePath = args[0].replace("~", os.homedir);
+
+if(!fs.existsSync(commandsFilePath)) {
+  throw commandsFilePath +  ' file does not exist';
+}
+
+let bazelExecRoot = args[1].replace("~", os.homedir);
+
+if(!fs.existsSync(bazelExecRoot)) {
+  throw bazelExecRoot +  ' directory does not exist';
+}
+
+let commandsString = fs.readFileSync(commandsFilePath, 'utf8');
+let commands = JSON.parse(commandsString);
+
+for(let i = 0; i < commands.length; i++) {
+  const command = commands[i];
+  commands[i] = sanitise(command, bazelExecRoot);
+}
+
+fs.writeFileSync(commandsFilePath, JSON.stringify(commands, null, 2));
