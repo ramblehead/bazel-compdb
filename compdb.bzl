@@ -216,7 +216,9 @@ def _compilation_database_impl(ctx):
 
   db_json = _compilation_db_json(compilation_db, module_exts, exclude_dirs)
   content = "[\n" + db_json + "\n]\n"
+
   content = content.replace("__EXEC_ROOT__", ctx.var["exec_root"])
+  # content = content.replace("__EXEC_ROOT__", ctx.attr.exec_root)
   ctx.actions.write(output=ctx.outputs.filename, content=content)
 
 compilation_database = rule(
@@ -228,6 +230,10 @@ compilation_database = rule(
       default = _module_exts_default,
       doc = "List of extensions of compile module files which " +
             "should be included into compillation database."),
+    # "exec_root": attr.string(
+    #   default = "__EXEC_ROOT__",
+    #   doc = "Execution root of Bazel as returned by 'bazel info execution_root'.",
+    # ),
     "exclude_dirs": attr.string_list(
       default = _exclude_dirs_default,
       doc = "List of direcrories to exclude from compillation database."),
