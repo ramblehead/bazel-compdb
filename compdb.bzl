@@ -159,10 +159,10 @@ def _compilation_database_aspect_impl(target, ctx):
 
   for src in srcs:
     command_for_file = compile_command + " -c " + src.path
-    exec_root_marker = "__EXEC_ROOT__"
+    # exec_root_marker = "__EXEC_ROOT__"
     compilation_db.append(struct(
       db = struct(
-        directory = exec_root_marker,
+        # directory = exec_root_marker,
         command = command_for_file,
         file = src.path),
       src = src))
@@ -217,7 +217,7 @@ def _compilation_database_impl(ctx):
   db_json = _compilation_db_json(compilation_db, module_exts, exclude_dirs)
   content = "[\n" + db_json + "\n]\n"
 
-  content = content.replace("__EXEC_ROOT__", ctx.var["exec_root"])
+  # content = content.replace("__EXEC_ROOT__", ctx.var["exec_root"])
   # content = content.replace("__EXEC_ROOT__", ctx.attr.exec_root)
   ctx.actions.write(output=ctx.outputs.filename, content=content)
 

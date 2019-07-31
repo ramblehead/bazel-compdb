@@ -13,13 +13,13 @@ const os = require("os");
 // New Bazel
 // command = "/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -fno-canonical-system-headers -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I bazel-out/k8-fastbuild/bin/server/_virtual_includes/server -I bazel-out/k8-fastbuild/bin/external/wt/_virtual_includes/wt -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp"
 
-// directory = "/home/rh/projects/s600-solution/wtx";
+// bazelWorkspaceDir = "/home/rh/projects/s600-solution/wtx";
 // file = "server/wtx/SimpleComboBox.cpp";
-// bazelExecRoot = path.join(directory, 'bazel-' + path.basename(directory));
+// bazelExecroot = path.join(bazelWorkspaceDir, 'bazel-' + path.basename(bazelWorkspaceDir));
 
-const sanitise = ({command, file, directory}, bazelExecRoot) => {
+const unbox = ({ command, file }, bazelWorkspaceDir, bazelExecroot) => {
   command = command.trim(command);
-  if(!path.isAbsolute(file)) file = path.join(directory, file);
+  if(!path.isAbsolute(file)) file = path.join(bazelWorkspaceDir, file);
 
   // Regexp selects quoted strings handling excape characters
   let commandParts = command.split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
@@ -65,17 +65,14 @@ const sanitise = ({command, file, directory}, bazelExecRoot) => {
       relPath = relPath.replace(/^["']?(.+?)["']?$/, '$1');
       if(path.isAbsolute(relPath)) absPath = relPath;
       else {
-        absPath = path.join(directory, relPath);
-        if(!fs.existsSync(absPath)) path.join(bazelExecRoot, relPath);
+        absPath = path.join(bazelWorkspaceDir, relPath);
+        if(!fs.existsSync(absPath)) absPath = path.join(bazelExecroot, relPath);
         if(fs.existsSync(absPath)) {
           if(absPath.match(/\s/)) absPath = '"' + absPath + '"';
           value = m[1] + ' ' + absPath + m[3];
           result.push(value);
         }
       }
-      // else {
-      //   console.log(`----- `, absPath);
-      // }
     }
     else result.push(value);
     return result;
@@ -83,36 +80,42 @@ const sanitise = ({command, file, directory}, bazelExecRoot) => {
 
   command = commandParts.join('');
 
-  return {command, file, directory};
+  return { command, file, directory: bazelWorkspaceDir };
 };
 
-let args = process.argv.slice(2);
+const args = process.argv.slice(2);
 
 if(args.length != 2) {
-  console.log('Usage: sanitise ' +
-              'path/to/compile_commands.json ' +
-              'bazel/execution/root');
+  console.log(
+    'Usage: unbox path/to/compile_commands.json bazel/workspace/dir');
   process.exit();
 }
 
-let commandsFilePath = args[0].replace("~", os.homedir);
+const compileCommandsPath = args[0].replace("~", os.homedir);
 
-if(!fs.existsSync(commandsFilePath)) {
-  throw commandsFilePath +  ' file does not exist';
+if(!fs.existsSync(compileCommandsPath)) {
+  throw compileCommandsPath +  ' file does not exist';
 }
 
-let bazelExecRoot = args[1].replace("~", os.homedir);
+const bazelWorkspaceDir = args[1].replace("~", os.homedir);
 
-if(!fs.existsSync(bazelExecRoot)) {
-  throw bazelExecRoot +  ' directory does not exist';
+if(!fs.existsSync(bazelWorkspaceDir)) {
+  throw bazelWorkspaceDir +  ' directory does not exist';
 }
 
-let commandsString = fs.readFileSync(commandsFilePath, 'utf8');
+const bazelExecroot = path.join(
+  bazelWorkspaceDir, 'bazel-' + path.basename(bazelWorkspaceDir));
+
+if(!fs.existsSync(bazelExecroot)) {
+  throw bazelExecroot +  ' directory does not exist';
+}
+
+let commandsString = fs.readFileSync(compileCommandsPath, 'utf8');
 let commands = JSON.parse(commandsString);
 
 for(let i = 0; i < commands.length; i++) {
   const command = commands[i];
-  commands[i] = sanitise(command, bazelExecRoot);
+  commands[i] = unbox(command, bazelWorkspaceDir, bazelExecroot);
 }
 
-fs.writeFileSync(commandsFilePath, JSON.stringify(commands, null, 2));
+fs.writeFileSync(compileCommandsPath, JSON.stringify(commands, null, 2));
