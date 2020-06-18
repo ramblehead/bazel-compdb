@@ -79,6 +79,7 @@ const unbox = ({ command, file }, bazelWorkspaceDir, bazelExecroot) => {
   }, []);
 
   command = commandParts.join('');
+  command = command.replace(/ +-fno-canonical-system-headers/, '');
 
   return { command, file, directory: bazelWorkspaceDir };
 };
