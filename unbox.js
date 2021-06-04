@@ -70,17 +70,19 @@ const unbox = ({ command, file }, bazelWorkspacePath, bazelExecroot) => {
   commandParts = commandParts.reduce((result, value) => {
     let m = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
     if(m) {
-      let absPath, relPath = m[2];
+      // let absPath, relPath = m[2];
+      let relPath = m[2];
       if(relPath === '.') { return result; }
       relPath = relPath.replace(/^["']?(.+?)["']?$/, '$1');
-      if(path.isAbsolute(relPath)) { absPath = relPath; }
-      else {
-        absPath = path.join(bazelWorkspacePath, relPath);
+      // if(path.isAbsolute(relPath)) { absPath = relPath; }
+      // else {
+      if(!path.isAbsolute(relPath)) {
+        let absPath = path.join(bazelWorkspacePath, relPath);
         if(!fs.existsSync(absPath)) {
           absPath = path.join(bazelExecroot, relPath);
         }
         if(fs.existsSync(absPath)) {
-          if(absPath.match(/\s/)) absPath = '"' + absPath + '"';
+          if(absPath.match(/\s/)) { absPath = '"' + absPath + '"'; };
           value = m[1] + ' ' + absPath + m[3];
           result.push(value);
         }
@@ -98,11 +100,11 @@ const unbox = ({ command, file }, bazelWorkspacePath, bazelExecroot) => {
 
 const args = process.argv.slice(2);
 
-if(args.length != 5) {
+if(args.length != 4) {
   console.log(
     ['Usage: unbox path/to/compile_commands.json',
-     'bazel/workspace/path bazel/execroot/dir',
-     'remove/prefix/path add/prefix/path',
+     'bazel/workspace/path bazel/execroot/dir include/prefix/path',
+     // 'remove/prefix/path add/prefix/path',
     ].join(' ')
   );
   process.exit();
@@ -129,15 +131,24 @@ if(!fs.existsSync(bazelExecroot)) {
   throw bazelExecroot +  ' bazelExecroot does not exist';
 }
 
-const removePrefixPath = args[3];
-const addPrefixPath = args[4];
+const includePrefixPath = path.join(args[3], path.sep);
+// const removePrefixPath = args[4];
+// const addPrefixPath = args[5];
 
 let commandsString = fs.readFileSync(compileCommandsPath, 'utf8');
-let commands = JSON.parse(commandsString);
+const commandsIn = JSON.parse(commandsString);
+const commandsOut = [];
 
-for(let i = 0; i < commands.length; i++) {
-  const command = commands[i];
-  commands[i] = unbox(command, bazelWorkspacePath, bazelExecroot);
+// for(let i = 0; i < commands.length; i++) {
+//   const command = commands[i];
+//   commands[i] = unbox(command, bazelWorkspacePath, bazelExecroot);
+// }
+
+for(let command of commandsIn) {
+  if(command.file.startsWith(includePrefixPath)) {
+    commandsOut.push(unbox(command, bazelWorkspacePath, bazelExecroot));
+  }
 }
 
-fs.writeFileSync(compileCommandsPath, JSON.stringify(commands, null, 2));
+
+fs.writeFileSync(compileCommandsPath, JSON.stringify(commandsOut, null, 2));

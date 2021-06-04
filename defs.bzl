@@ -36,14 +36,14 @@ CompilationAspect = provider()
 
 _indentation = "  "
 _module_exts_default = ["cpp", "cc", "cxx", "C"]
-_exclude_dirs_default = []
-_include_dirs_default = []
+# _exclude_dirs_default = []
+# _include_dirs_default = []
 
 def _compilation_db_json(
   compilation_db,
   module_exts,
-  include_dirs,
-  exclude_dirs,
+  # include_dirs,
+  # exclude_dirs,
 ):
   if type(compilation_db) == "depset":
     compilation_db_list = compilation_db.to_list()
@@ -59,22 +59,22 @@ def _compilation_db_json(
   entries = []
   for entry in compilation_db_list:
     if entry.src.extension in module_exts:
-      # entries.append(entry.db.to_json())
-      include = False
-      exclude = False
-      if include_dirs:
-        for include_dir in include_dirs:
-          if entry.src.path.startswith(include_dir):
-            include = True
-            break
-      else:
-        include = True
-      for exclude_dir in exclude_dirs:
-        if entry.src.path.startswith(exclude_dir):
-          exclude = True
-          break
-      if include and not exclude:
-        entries.append(entry.db.to_json())
+      entries.append(entry.db.to_json())
+      # include = False
+      # exclude = False
+      # if include_dirs:
+      #   for include_dir in include_dirs:
+      #     if entry.src.path.startswith(include_dir):
+      #       include = True
+      #       break
+      # else:
+      #   include = True
+      # for exclude_dir in exclude_dirs:
+      #   if entry.src.path.startswith(exclude_dir):
+      #     exclude = True
+      #     break
+      # if include and not exclude:
+      #   entries.append(entry.db.to_json())
 
   s = _indentation
   l = len(entries)
@@ -191,8 +191,8 @@ def _compilation_database_aspect_impl(target, ctx):
     content = _compilation_db_json(
       compilation_db,
       _module_exts_default,
-      _include_dirs_default,
-      _exclude_dirs_default,
+      # _include_dirs_default,
+      # _exclude_dirs_default,
     ),
     output = compdb_file,
   )
@@ -231,8 +231,8 @@ def _compilation_database_impl(ctx):
   # transitive depset of specified targets.
 
   module_exts = ctx.attr.module_exts
-  include_dirs = ctx.attr.include_dirs
-  exclude_dirs = ctx.attr.exclude_dirs
+  # include_dirs = ctx.attr.include_dirs
+  # exclude_dirs = ctx.attr.exclude_dirs
 
   compilation_db = depset()
   for target in ctx.attr.targets:
@@ -244,8 +244,8 @@ def _compilation_database_impl(ctx):
   db_json = _compilation_db_json(
     compilation_db,
     module_exts,
-    include_dirs,
-    exclude_dirs,
+    # include_dirs,
+    # exclude_dirs,
   )
   content = "[\n" + db_json + "\n]\n"
 
@@ -268,16 +268,16 @@ compilation_database = rule(
     #   default = "__EXEC_ROOT__",
     #   doc = "Execution root of Bazel as returned by 'bazel info execution_root'.",
     # ),
-    "include_dirs": attr.string_list(
-      default = _exclude_dirs_default,
-      doc = "List of direcrories to include to compillation database. " +
-        "Empty list means \"include all\"",
-    ),
-    "exclude_dirs": attr.string_list(
-      default = _exclude_dirs_default,
-      doc = "List of direcrories to exclude from compillation database." +
-        "Empty list means \"exclude nothing\"",
-    ),
+    # "include_dirs": attr.string_list(
+    #   default = _exclude_dirs_default,
+    #   doc = "List of direcrories to include to compillation database. " +
+    #     "Empty list means \"include all\"",
+    # ),
+    # "exclude_dirs": attr.string_list(
+    #   default = _exclude_dirs_default,
+    #   doc = "List of direcrories to exclude from compillation database." +
+    #     "Empty list means \"exclude nothing\"",
+    # ),
   },
   outputs = {
     "filename": "compile_commands.json",
