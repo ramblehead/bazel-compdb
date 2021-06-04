@@ -37,29 +37,43 @@ CompilationAspect = provider()
 _indentation = "  "
 _module_exts_default = ["cpp", "cc", "cxx", "C"]
 _exclude_dirs_default = []
+_include_dirs_default = []
 
-def _compilation_db_json(compilation_db, module_exts, exclude_dirs):
-  # for entry in compilation_db:
-  #   print(entry.src.path)
-
-  # Return a JSON string for the compilation db entries.
-  # entries = [entry.db.to_json() for entry in compilation_db if entry.src.extension in module_exts]
-  # entries = [entry.db.to_json() for entry in compilation_db
-  #            if entry.src.extension in module_exts and entry.src.path not in exclude_dirs]
-
+def _compilation_db_json(
+  compilation_db,
+  module_exts,
+  include_dirs,
+  exclude_dirs,
+):
   if type(compilation_db) == "depset":
     compilation_db_list = compilation_db.to_list()
   else: compilation_db_list = compilation_db
 
+  # print("compilation_db_list (")
+  # for entry in compilation_db_list:
+  #   print(entry.src.path)
+  # print(") compilation_db_list")
+  # print(exclude_dirs)
+  # print(include_dirs)
+
   entries = []
   for entry in compilation_db_list:
     if entry.src.extension in module_exts:
+      # entries.append(entry.db.to_json())
+      include = False
       exclude = False
+      if include_dirs:
+        for include_dir in include_dirs:
+          if entry.src.path.startswith(include_dir):
+            include = True
+            break
+      else:
+        include = True
       for exclude_dir in exclude_dirs:
         if entry.src.path.startswith(exclude_dir):
           exclude = True
           break
-      if not exclude:
+      if include and not exclude:
         entries.append(entry.db.to_json())
 
   s = _indentation
@@ -151,8 +165,9 @@ def _compilation_database_aspect_impl(target, ctx):
   )
   # system built-in directories (helpful for macOS).
   if cc_toolchain.libc == "macosx":
-    compile_flags += ["-isystem " + str(d)
-                      for d in cc_toolchain.built_in_include_directories]
+    compile_flags += [
+      "-isystem " + str(d) for d in cc_toolchain.built_in_include_directories
+    ]
 
   compile_command = \
     compiler + " " + " ".join(compile_flags) + force_cpp_mode_option
@@ -164,15 +179,23 @@ def _compilation_database_aspect_impl(target, ctx):
       db = struct(
         # directory = exec_root_marker,
         command = command_for_file,
-        file = src.path),
-      src = src))
+        file = src.path,
+      ),
+      src = src,
+    ))
 
   # Write the commands for this target.
-  compdb_file = ctx.actions.declare_file(ctx.label.name + ".compile_commands.json")
+  compdb_file = \
+    ctx.actions.declare_file(ctx.label.name + ".compile_commands.json")
   ctx.actions.write(
     content = _compilation_db_json(
-      compilation_db, _module_exts_default, _exclude_dirs_default),
-    output = compdb_file)
+      compilation_db,
+      _module_exts_default,
+      _include_dirs_default,
+      _exclude_dirs_default,
+    ),
+    output = compdb_file,
+  )
 
   # Collect all transitive dependencies.
   compilation_db = depset(compilation_db)
@@ -182,9 +205,11 @@ def _compilation_database_aspect_impl(target, ctx):
     # compilation_db += dep[CompilationAspect].compilation_db
     # all_compdb_files += dep[OutputGroupInfo].compdb_files
     compilation_db = depset(
-      transitive = [compilation_db, dep[CompilationAspect].compilation_db])
+      transitive = [compilation_db, dep[CompilationAspect].compilation_db],
+    )
     all_compdb_files = depset(
-      transitive = [all_compdb_files, dep[OutputGroupInfo].compdb_files])
+      transitive = [all_compdb_files, dep[OutputGroupInfo].compdb_files],
+    )
 
   return [
     CompilationAspect(compilation_db = compilation_db),
@@ -206,15 +231,22 @@ def _compilation_database_impl(ctx):
   # transitive depset of specified targets.
 
   module_exts = ctx.attr.module_exts
+  include_dirs = ctx.attr.include_dirs
   exclude_dirs = ctx.attr.exclude_dirs
 
   compilation_db = depset()
   for target in ctx.attr.targets:
     # compilation_db += target[CompilationAspect].compilation_db
     compilation_db = depset(
-      transitive = [compilation_db, target[CompilationAspect].compilation_db])
+      transitive = [compilation_db, target[CompilationAspect].compilation_db]
+    )
 
-  db_json = _compilation_db_json(compilation_db, module_exts, exclude_dirs)
+  db_json = _compilation_db_json(
+    compilation_db,
+    module_exts,
+    include_dirs,
+    exclude_dirs,
+  )
   content = "[\n" + db_json + "\n]\n"
 
   # content = content.replace("__EXEC_ROOT__", ctx.var["exec_root"])
@@ -225,18 +257,27 @@ compilation_database = rule(
   attrs = {
     "targets": attr.label_list(
       aspects = [compilation_database_aspect],
-      doc = "List of all cc targets which should be included."),
+      doc = "List of all cc targets which should be included.",
+    ),
     "module_exts": attr.string_list(
       default = _module_exts_default,
       doc = "List of extensions of compile module files which " +
-            "should be included into compillation database."),
+        "should be included into compillation database.",
+    ),
     # "exec_root": attr.string(
     #   default = "__EXEC_ROOT__",
     #   doc = "Execution root of Bazel as returned by 'bazel info execution_root'.",
     # ),
+    "include_dirs": attr.string_list(
+      default = _exclude_dirs_default,
+      doc = "List of direcrories to include to compillation database. " +
+        "Empty list means \"include all\"",
+    ),
     "exclude_dirs": attr.string_list(
       default = _exclude_dirs_default,
-      doc = "List of direcrories to exclude from compillation database."),
+      doc = "List of direcrories to exclude from compillation database." +
+        "Empty list means \"exclude nothing\"",
+    ),
   },
   outputs = {
     "filename": "compile_commands.json",

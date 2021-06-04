@@ -19,14 +19,24 @@ const os = require("os");
 
 const unbox = ({ command, file }, bazelWorkspaceDir, bazelExecroot) => {
   command = command.trim(command);
-  if(!path.isAbsolute(file)) file = path.join(bazelWorkspaceDir, file);
+  if(!path.isAbsolute(file)) {
+    file = path.join(bazelExecroot, file);
+  }
+
+  // if(!path.isAbsolute(file)) {
+  //   file = file.replace(
+  //     RegExp('^' + path.join(removePrefixPath, path.sep)),
+  //     '',
+  //   );
+  //   file = path.join(bazelWorkspaceDir, addPrefixPath, file);
+  // }
 
   // Regexp selects quoted strings handling excape characters
   let commandParts = command.split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
 
   commandParts = commandParts.reduce((result, value) => {
     let last;
-    if(result.length > 0) last = result[result.length - 1];
+    if(result.length > 0) { last = result[result.length - 1]; }
     else last = '';
     if(last === '"' || last === "'") {
       result[result.length - 1] += value;
@@ -43,17 +53,17 @@ const unbox = ({ command, file }, bazelWorkspaceDir, bazelExecroot) => {
   }, []);
 
   commandParts = commandParts.reduce((result, value) => {
-    if(value === '') return result;
+    if(value === '') { return result; }
     let last;
-    if(result.length > 0) last = result[result.length - 1];
+    if(result.length > 0) { last = result[result.length - 1]; }
     else last = '';
     if(last.match(/^(?:-I|-isystem|-iquote|-c|-x)\s*$/) ||
        last.match(/=\s*$/) ||
-       value.match(/^\s+$/))
-    {
+       value.match(/^\s+$/)
+    ) {
       result[result.length - 1] += value;
     }
-    else result.push(value);
+    else { result.push(value); }
     return result;
   }, []);
 
@@ -61,12 +71,14 @@ const unbox = ({ command, file }, bazelWorkspaceDir, bazelExecroot) => {
     let m = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
     if(m) {
       let absPath, relPath = m[2];
-      if(relPath === '.') return result;
+      if(relPath === '.') { return result; }
       relPath = relPath.replace(/^["']?(.+?)["']?$/, '$1');
-      if(path.isAbsolute(relPath)) absPath = relPath;
+      if(path.isAbsolute(relPath)) { absPath = relPath; }
       else {
         absPath = path.join(bazelWorkspaceDir, relPath);
-        if(!fs.existsSync(absPath)) absPath = path.join(bazelExecroot, relPath);
+        if(!fs.existsSync(absPath)) {
+          absPath = path.join(bazelExecroot, relPath);
+        }
         if(fs.existsSync(absPath)) {
           if(absPath.match(/\s/)) absPath = '"' + absPath + '"';
           value = m[1] + ' ' + absPath + m[3];
@@ -74,7 +86,7 @@ const unbox = ({ command, file }, bazelWorkspaceDir, bazelExecroot) => {
         }
       }
     }
-    else result.push(value);
+    else { result.push(value); }
     return result;
   }, []);
 
@@ -86,9 +98,12 @@ const unbox = ({ command, file }, bazelWorkspaceDir, bazelExecroot) => {
 
 const args = process.argv.slice(2);
 
-if(args.length != 2) {
+if(args.length != 4) {
   console.log(
-    'Usage: unbox path/to/compile_commands.json bazel/workspace/dir');
+    ['Usage: unbox path/to/compile_commands.json bazel/workspace/dir',
+     'remove/prefix/path add/prefix/path',
+    ].join(' ')
+  );
   process.exit();
 }
 
@@ -101,15 +116,19 @@ if(!fs.existsSync(compileCommandsPath)) {
 const bazelWorkspaceDir = args[1].replace("~", os.homedir);
 
 if(!fs.existsSync(bazelWorkspaceDir)) {
-  throw bazelWorkspaceDir +  ' directory does not exist';
+  throw bazelWorkspaceDir +  ' bazelWorkspaceDir does not exist';
 }
 
 const bazelExecroot = path.join(
-  bazelWorkspaceDir, 'bazel-' + path.basename(bazelWorkspaceDir));
+  bazelWorkspaceDir, 'bazel-' + path.basename(bazelWorkspaceDir)
+);
 
 if(!fs.existsSync(bazelExecroot)) {
-  throw bazelExecroot +  ' directory does not exist';
+  throw bazelExecroot +  ' bazelExecroot does not exist';
 }
+
+const removePrefixPath = args[2];
+const addPrefixPath = args[3];
 
 let commandsString = fs.readFileSync(compileCommandsPath, 'utf8');
 let commands = JSON.parse(commandsString);
