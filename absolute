@@ -1,0 +1,104 @@
+#!/usr/bin/env node
+/* global require process */
+
+const fs = require('fs');
+const path = require('path');
+const os = require("os");
+
+const absolute = ({ command, file, directory }) => {
+  if(!path.isAbsolute(file)) {
+    file = path.join(directory, file);
+  }
+  command = command.trim(command);
+
+  // Regexp selects quoted strings handling excape characters
+  let commandParts = command.split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
+
+  commandParts = commandParts.reduce((result, value) => {
+    let last;
+    if(result.length > 0) { last = result[result.length - 1]; }
+    else last = '';
+    if(last === '"' || last === "'") {
+      result[result.length - 1] += value;
+    }
+    else if(value === '"' || value === "'") {
+      result.push(value);
+    }
+    else {
+      // Regexp selects non-white-space strings respecting escaped
+      // white-space symbols
+      result = result.concat(value.split(/([^\s](?:[^\s\\]|\\.)*)/g));
+    }
+    return result;
+  }, []);
+
+  commandParts = commandParts.reduce((result, value) => {
+    if(value === '') { return result; }
+    let last;
+    if(result.length > 0) { last = result[result.length - 1]; }
+    else last = '';
+    if(last.match(/^(?:-I|-isystem|-iquote|-c|-x)\s*$/) ||
+       last.match(/=\s*$/) ||
+       value.match(/^\s+$/)
+    ) {
+      result[result.length - 1] += value;
+    }
+    else { result.push(value); }
+    return result;
+  }, []);
+
+  commandParts = commandParts.reduce((result, value) => {
+    let m = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
+    if(m) {
+      let relPath = m[2];
+      if(relPath === '.') { return result; }
+      relPath = relPath.replace(/^["']?(.+?)["']?$/, '$1');
+
+      console.log('******', relPath);
+      result.push(value);
+
+      // if(!path.isAbsolute(relPath)) {
+      //   let absPath = path.join(directory, relPath);
+      //   if(fs.existsSync(absPath)) {
+      //     if(absPath.match(/\s/)) { absPath = '"' + absPath + '"'; };
+      //     value = `${m[1]} ${absPath}${m[3]}`;
+      //     result.push(value);
+      //   }
+      //   else {
+      //     console.log(`${absPath} does not exist.`);
+      //     process.exit(1);
+      //   }
+      // }
+    }
+    else { result.push(value); }
+    return result;
+  }, []);
+
+  command = commandParts.join('');
+
+  return { command, file, directory };
+};
+
+const args = process.argv.slice(2);
+
+if(args.length != 1) {
+  console.log('Usage: absolute path/to/compile_commands.json');
+  process.exit();
+}
+
+const compileCommandsPath = args[0].replace("~", os.homedir);
+
+if(!fs.existsSync(compileCommandsPath)) {
+  throw compileCommandsPath +  ' file does not exist';
+}
+
+let commandsString = fs.readFileSync(compileCommandsPath, 'utf8');
+const commandsIn = JSON.parse(commandsString);
+const commandsOut = [];
+
+for(let command of commandsIn) {
+  commandsOut.push(absolute(command));
+}
+
+
+fs.writeFileSync(compileCommandsPath, JSON.stringify(commandsOut, null, 2));

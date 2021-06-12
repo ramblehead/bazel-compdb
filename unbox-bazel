@@ -1,0 +1,172 @@
+#!/usr/bin/env node
+/* global require process */
+
+const fs = require('fs');
+const path = require('path');
+const os = require("os");
+
+// command = "/usr/bin/gcc-11 -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -std=c++20 -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -D BOOST_FUSION_DONT_USE_PREPROCESSED_FILES -D BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS -D BOOST_MPL_LIMIT_VECTOR_SIZE=50 -D FUSION_MAX_VECTOR_SIZE=30 -D BOOST_BIND_GLOBAL_PLACEHOLDERS -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/wui/_virtual_includes/wui -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/reflection/_virtual_includes/reflection -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx/server/_virtual_includes/server -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/debug/_virtual_includes/debug -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/signal_processors/_virtual_includes/signal_processors -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx/server/_virtual_includes/wtx_common -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/data_logger/_virtual_includes/data_logger -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/data_formaters/_virtual_includes/data_formaters -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/instrument_model/_virtual_includes/instrument_model -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/inline/_virtual_includes/inline -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/modules_connection/_virtual_includes/modules_connection -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/persistence/_virtual_includes/persistence -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/system_logger/_virtual_includes/system_logger -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/utils/_virtual_includes/utils -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/config/_virtual_includes/config -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/physical_values/_virtual_includes/physical_values -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/wui_controller/_virtual_includes/wui_controller -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/state_machine/_virtual_includes/state_machine -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/host -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/cpp_utils -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/wtx -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/system -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/bazel_tools -isystem /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wt/wt/include -isystem /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/boost/boost/include/boost-1_76 -x c++ -c /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/host/server/s600-host.cpp"
+
+// command =  "/usr/bin/g++-11 -DBOOST_ALL_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_RANDOM_DYN_LINK -DBOOST_REGEX_DYN_LINK -DBOOST_SPIRIT_THREADSAFE -DBOOST_SYSTEM_DYN_LINK -DBOOST_THREAD_DYN_LINK -DGLEW_STATIC -DHAVE_GRAPHICSMAGICK -DHAVE_PDF_IMAGE -DWT_BUILDING -DWT_FONTSUPPORT_SIMPLE -DWT_WITH_OLD_INTERNALPATH_API -D_REENTRANT -Dwt_EXPORTS -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/bazel-out/k8-fastbuild/bin/external/wt/wt.build_tmpdir -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src/web -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/bazel-out/k8-fastbuild/bin/external/wt/wt.build_tmpdir/src -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src/Wt/Dbo/backend/amalgamation -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src/3rdparty/glew-1.10.0/include -I/usr/include/GraphicsMagick -isystem /home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/bazel-out/k8-fastbuild/bin/external/wt/wt.ext_build_deps/boost/include/boost-1_76 -pipe -feliminate-unused-debug-types -Wno-unused-parameter -std=c++20 -O2 -g -DNDEBUG -fPIC -o CMakeFiles/wt.dir/Wt/ServerSideFontMetrics.C.o -c /home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src/Wt/ServerSideFontMetrics.C"
+
+// command = "   	/usr/bin/gcc     -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -f\"no -canonical-system-headers\" -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I \"bazel- out/k8-fastbuild/bin/server/_virtual_includes/server\" -I'bazel-out/ k8-fastbuild/bin/external/wt/_virtual_includes/wt' -I bazel\\ -out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/genfiles -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/genfiles/external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/genfiles/external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/genfiles/external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp  /usr/bin/gcc ";
+
+// Old Bazel
+// command = "/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -fno-canonical-system-headers -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I bazel-out/k8-fastbuild/bin/server/_virtual_includes/server -I bazel-out/k8-fastbuild/bin/external/wt/_virtual_includes/wt -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/genfiles -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/genfiles/external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/genfiles/external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/genfiles/external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp";
+
+// New Bazel
+// command = "/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -fno-canonical-system-headers -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I bazel-out/k8-fastbuild/bin/server/_virtual_includes/server -I bazel-out/k8-fastbuild/bin/external/wt/_virtual_includes/wt -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp"
+
+// bazelWorkspacePath = "/home/rh/projects/s600-solution/wtx";
+// file = "server/wtx/SimpleComboBox.cpp";
+// bazelExecroot = path.join(bazelWorkspacePath, 'bazel-' + path.basename(bazelWorkspacePath));
+
+const bazelExternalReplacements = {
+  'wt/wt/include': 'external/wt/src/src',
+  'boost/boost/include/boost-1_76': 'external/boost/src',
+};
+
+const bazelOutExternalRegex = RegExp('^bazel-out/k8-fastbuild/bin/external/');
+const bazelBuildRootExternalRegex = RegExp('^external/');
+
+const unbox = ({ command, file }, bazelWorkspacePath, bazelExecroot) => {
+  const fileOrig = file;
+
+  {
+    const pathStrSuffix = file.replace(bazelOutExternalRegex, '');
+    if(pathStrSuffix in bazelExternalReplacements) {
+      file = bazelExternalReplacements[pathStrSuffix];
+    }
+    else { file = pathStrSuffix; }
+  }
+
+  file = path.join(bazelWorkspacePath, file);
+
+  if(!fs.existsSync(file)) {
+    console.log(
+      [`file = ${file} does not exist.\n`,
+       `fileOrig = ${fileOrig}`,
+      ].join(''),
+    );
+    process.exit(1);
+  }
+
+  command = command.trim(command);
+
+  // Regexp selects quoted strings handling excaped characters
+  let commandParts = command.split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
+
+  // Re-split commandParts into white space and not-white space
+  // respecting quatations and excaped characters
+  commandParts = commandParts.reduce((result, value) => {
+    let last;
+    if(result.length > 0) { last = result[result.length - 1]; }
+    else last = '';
+    if(last === '"' || last === "'") {
+      result[result.length - 1] += value;
+    }
+    else if(value === '"' || value === "'") {
+      result.push(value);
+    }
+    else {
+      // Regexp selects non-white-space strings respecting escaped
+      // white-space symbols
+      result = result.concat(value.split(/([^\s](?:[^\s\\]|\\.)*)/g));
+    }
+    return result;
+  }, []);
+
+  // Re-join parts into LCI command options and parameters
+  commandParts = commandParts.reduce((result, value) => {
+    if(value === '') { return result; }
+    let last;
+    if(result.length > 0) { last = result[result.length - 1]; }
+    else { last = ''; }
+    if(last.match(/^(?:-I|-isystem|-iquote|-c|-x)\s*$/) ||
+       last.match(/=\s*$/) ||
+       value.match(/^\s+$/)
+    ) {
+      result[result.length - 1] += value;
+    }
+    else { result.push(value); }
+    return result;
+  }, []);
+
+  commandParts = commandParts.reduce((result, value) => {
+    let m = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
+    if(m) {
+      let pathStr = m[2];
+      if(pathStr === '.') { return result; }
+      // Strip quatations if any
+      pathStr = pathStr.replace(/^["']?(.+?)["']?$/, '$1');
+      if(fs.existsSync(pathStr)) {
+        pathStr = pathStr.replace(
+          RegExp(`^${path.join(bazelWorkspacePath, '/')}`),
+          '',
+        );
+
+        const pathStrSuffix = pathStr.replace(bazelOutExternalRegex, '');
+        if(pathStrSuffix in bazelExternalReplacements) {
+          pathStr = bazelExternalReplacements[pathStrSuffix];
+        }
+
+        if(pathStr.match(/\s/)) { pathStr = '"' + pathStr + '"'; };
+        value = m[1] + ' ' + pathStr + m[3];
+        result.push(value);
+      }
+    }
+    else { result.push(value); }
+    return result;
+  }, []);
+
+  command = commandParts.join('');
+  command = command.replace(/ +-fno-canonical-system-headers/, '');
+
+  return { command, file, directory: bazelWorkspacePath };
+};
+
+const args = process.argv.slice(2);
+
+if(!(args.length == 2 || args.length == 3)) {
+  console.log(
+    ['Usage: unbox path/to/compile_commands.json',
+     'bazel/workspace/path [include/prefix/path]',
+    ].join(' ')
+  );
+  process.exit();
+}
+
+const compileCommandsPath = args[0].replace("~", os.homedir);
+
+if(!fs.existsSync(compileCommandsPath)) {
+  throw compileCommandsPath +  ' file does not exist';
+}
+
+const bazelWorkspacePath = args[1].replace("~", os.homedir);
+
+if(!fs.existsSync(bazelWorkspacePath)) {
+  throw bazelWorkspacePath +  ' bazelWorkspacePath does not exist';
+}
+
+const includePrefixPath =
+  args[3] === undefined ? null : path.join(args[3], path.sep);
+
+let commandsString = fs.readFileSync(compileCommandsPath, 'utf8');
+const commandsIn = JSON.parse(commandsString);
+const commandsOut = [];
+
+if(includePrefixPath === null) {
+  for(let command of commandsIn) {
+    commandsOut.push(unbox(command, bazelWorkspacePath));
+  }
+}
+else {
+  for(let command of commandsIn) {
+    if(command.file.startsWith(includePrefixPath)) {
+      commandsOut.push(unbox(command, bazelWorkspacePath));
+    }
+  }
+}
+
+
+fs.writeFileSync(compileCommandsPath, JSON.stringify(commandsOut, null, 2));
