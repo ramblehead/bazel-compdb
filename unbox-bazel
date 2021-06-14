@@ -17,44 +17,39 @@ const os = require("os");
 // New Bazel
 // command = "/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -fno-canonical-system-headers -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I bazel-out/k8-fastbuild/bin/server/_virtual_includes/server -I bazel-out/k8-fastbuild/bin/external/wt/_virtual_includes/wt -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp"
 
-// bazelWorkspacePath = "/home/rh/projects/s600-solution/wtx";
+// bazelWorkspacePath = "/home/rh/box/cambustion/s600-solution-n";
 // file = "server/wtx/SimpleComboBox.cpp";
 // bazelExecroot = path.join(bazelWorkspacePath, 'bazel-' + path.basename(bazelWorkspacePath));
+
+const bazelAdditionalIncludes = [
+  {
+    type: '-isystem',
+    path: 'bazel-out/k8-fastbuild/bin/external/wt/copy_wt/wt/wt.build_tmpdir/src',
+  }
+];
 
 const bazelExternalReplacements = {
   'wt/wt/include': 'external/wt/src/src',
   'boost/boost/include/boost-1_76': 'external/boost/src',
+  // As we are not cross-compiling, the host already has
+  // all requred access to system libs. So, excluding it.
+  'system': '',
+  // Bazel tools lib is not used in this project.
+  'bazel_tools': '',
 };
 
-const bazelOutExternalRegex = RegExp('^bazel-out/k8-fastbuild/bin/external/');
-const bazelBuildRootExternalRegex = RegExp('^external/');
+const bazelOutExternalRegex =
+  RegExp('^bazel-out/k8-fastbuild/bin/external(?:/(.+))$');
 
-const unbox = ({ command, file }, bazelWorkspacePath, bazelExecroot) => {
-  const fileOrig = file;
+const bazelBuildRootExternalRegex = RegExp('^external(?:/(.+))$');
 
-  {
-    const pathStrSuffix = file.replace(bazelOutExternalRegex, '');
-    if(pathStrSuffix in bazelExternalReplacements) {
-      file = bazelExternalReplacements[pathStrSuffix];
-    }
-    else { file = pathStrSuffix; }
-  }
+const packagesRelPathStr = 'packages';
 
-  file = path.join(bazelWorkspacePath, file);
-
-  if(!fs.existsSync(file)) {
-    console.log(
-      [`file = ${file} does not exist.\n`,
-       `fileOrig = ${fileOrig}`,
-      ].join(''),
-    );
-    process.exit(1);
-  }
-
+const tokeniseCommand = (command) => {
   command = command.trim(command);
 
   // Regexp selects quoted strings handling excaped characters
-  let commandParts = command.split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
+  let commandParts = command.trim().split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
 
   // Re-split commandParts into white space and not-white space
   // respecting quatations and excaped characters
@@ -92,37 +87,205 @@ const unbox = ({ command, file }, bazelWorkspacePath, bazelExecroot) => {
     return result;
   }, []);
 
-  commandParts = commandParts.reduce((result, value) => {
-    let m = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
-    if(m) {
-      let pathStr = m[2];
-      if(pathStr === '.') { return result; }
-      // Strip quatations if any
-      pathStr = pathStr.replace(/^["']?(.+?)["']?$/, '$1');
-      if(fs.existsSync(pathStr)) {
-        pathStr = pathStr.replace(
-          RegExp(`^${path.join(bazelWorkspacePath, '/')}`),
-          '',
-        );
+  commandParts = commandParts.map((value) => value.trim());
 
-        const pathStrSuffix = pathStr.replace(bazelOutExternalRegex, '');
-        if(pathStrSuffix in bazelExternalReplacements) {
-          pathStr = bazelExternalReplacements[pathStrSuffix];
-        }
+  return commandParts;
+};
 
-        if(pathStr.match(/\s/)) { pathStr = '"' + pathStr + '"'; };
-        value = m[1] + ' ' + pathStr + m[3];
-        result.push(value);
+const unboxBuildRootExternal = (file, bazelWorkspacePath) => {
+  let fileUnboxed = null;
+
+  // Strip quatations if any
+  const fileUnquoted = file.replace(/^["']?(.+?)["']?$/, '$1');
+
+  // buildRootExternal may only be relative.
+  // Such as "external/host/server/s600-host.cpp"
+  // The following regexp match should cantch non-anbsolutes,
+  // but leaving implicit check here to ease human logic.
+  if(path.isAbsolute(fileUnquoted)) { return null; }
+
+  const pathMatch = fileUnquoted.match(bazelBuildRootExternalRegex);
+  if(pathMatch === null || pathMatch[1] === undefined) { return null; }
+
+  const relPathStr = pathMatch[1];
+
+  if(relPathStr in bazelExternalReplacements) {
+    const replacementPathStr = bazelExternalReplacements[relPathStr];
+
+    // Empty string is used to indicate that this path
+    // should be excluded.
+    if(replacementPathStr === '') { return ''; }
+
+    let absPathStr = path.join(bazelWorkspacePath, replacementPathStr);
+
+    if(fs.existsSync(absPathStr)) {
+      fileUnboxed = absPathStr;
+    }
+    else {
+      throw new Error(
+        [`Bazel external replacement path = "${replacementPathStr}"`,
+         `for the origianl bazel build root path "${relPathStr}"`,
+         'does not exist.',
+        ].join(' '),
+      );
+    }
+  }
+  else {
+    // Check for possible "external" directory in Bazel build root.
+    let absPathStr = path.join(bazelWorkspacePath, fileUnquoted);
+
+    if(fs.existsSync(absPathStr)) {
+      fileUnboxed = absPathStr;
+    }
+    else {
+      // Replace "external" by a directory in Bazel build root
+      // that contains "packages".
+      absPathStr =
+        path.join(bazelWorkspacePath, packagesRelPathStr, relPathStr);
+
+      if(fs.existsSync(absPathStr)) {
+        fileUnboxed = absPathStr;
       }
+    }
+  }
+
+  // Add quatations if necessary
+  if(fileUnboxed !== null && fileUnboxed.match(/\s/)) {
+    fileUnboxed = `"${fileUnboxed}"`;
+  };
+
+  return fileUnboxed;
+};
+
+const unboxBuildOutExternal = (file, bazelWorkspacePath) => {
+  let fileUnboxed = null;
+
+  // Strip quatations if any
+  const fileUnquoted = file.replace(/^["']?(.+?)["']?$/, '$1');
+
+  // buildRootExternal may only be relative.
+  // Such as "external/host/server/s600-host.cpp"
+  // The following regexp match should cantch non-anbsolutes,
+  // but leaving implicit check here to ease human logic.
+  if(path.isAbsolute(fileUnquoted)) { return null; }
+
+  // TODO: '.' and '..(/.*)?' paths must be computed from the externally
+  //       provided build root.
+
+  // fileUnquoted = "bazel-out/k8-fastbuild/bin/external/wt/wt/include"
+  const pathMatch = fileUnquoted.match(bazelOutExternalRegex);
+  if(pathMatch === null || pathMatch[1] === undefined) { return null; }
+
+  const relPathStr = pathMatch[1];
+
+  if(relPathStr in bazelExternalReplacements) {
+    const replacementPathStr = bazelExternalReplacements[relPathStr];
+
+    // Empty string is used to indicate that this path
+    // should be excluded.
+    if(replacementPathStr === '') { return ''; }
+
+    const absPathStr = path.join(bazelWorkspacePath, replacementPathStr);
+
+    if(fs.existsSync(absPathStr)) {
+      fileUnboxed = absPathStr;
+    }
+  }
+  else {
+    const absPathStr = path.join(bazelWorkspacePath, fileUnquoted);
+    if(fs.existsSync(absPathStr)) { fileUnboxed = absPathStr; }
+    else { return null; }
+  }
+
+  // Add quatations if necessary
+  if(fileUnboxed.match(/\s/)) { fileUnboxed = `"${fileUnboxed}"`; };
+
+  return fileUnboxed;
+};
+
+const unbox = ({ command, file }, bazelWorkspacePath, bazelExecroot) => {
+
+  const fileUnboxed = unboxBuildRootExternal(file, bazelWorkspacePath);
+
+  if(fileUnboxed === null) {
+    throw new Error(
+      `"${fileUnboxed}" does not exist. Original file = "${file}."`,
+    );
+  }
+
+  let commandParts = tokeniseCommand(command);
+
+  commandParts = commandParts.reduce((result, value) => {
+    let valueMatch = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
+    if(valueMatch) {
+      let pathStr = valueMatch[2];
+      // if(pathStr === '.') { return result; }
+      // Strip quatations if any
+      // pathStr = pathStr.replace(/^["']?(.+?)["']?$/, '$1');
+      // if(fs.existsSync(pathStr)) {
+      //   pathStr = pathStr.replace(
+      //     RegExp(`^${path.join(bazelWorkspacePath, '/')}`),
+      //     '',
+      //   );
+
+      //   const pathStrSuffix = pathStr.replace(bazelOutExternalRegex, '');
+      //   if(pathStrSuffix in bazelExternalReplacements) {
+      //     pathStr = bazelExternalReplacements[pathStrSuffix];
+      //   }
+
+      //   if(pathStr.match(/\s/)) { pathStr = '"' + pathStr + '"'; };
+
+      //   value = valueMatch[1] + ' ' + pathStr + valueMatch[3];
+      //   result.push(value);
+      // }
+
+      let unboxedPathStr = unboxBuildRootExternal(pathStr, bazelWorkspacePath);
+      if(unboxedPathStr === '') { return result; }
+      if(unboxedPathStr === null) {
+        unboxedPathStr = unboxBuildOutExternal(pathStr, bazelWorkspacePath);
+      }
+      if(unboxedPathStr === '') { return result; }
+      if(unboxedPathStr === null) {
+        throw new Error(
+          `"${pathStr}" cannot be unboxed."`,
+        );
+      }
+
+      value = valueMatch[1] + ' ' + unboxedPathStr + valueMatch[3];
+      result.push(value);
     }
     else { result.push(value); }
     return result;
   }, []);
 
-  command = commandParts.join('');
-  command = command.replace(/ +-fno-canonical-system-headers/, '');
+  bazelAdditionalIncludes.forEach((include) => {
+    if(!['-I', '-isystem', '-iquote'].includes(include.type)) {
+      throw new Error([
+        `bazelAdditionalIncludes type in "${include}".`,
+        'Only allowed types are -I, -isystem, -iquote.'
+      ].join(' '));
+    }
 
-  return { command, file, directory: bazelWorkspacePath };
+    const absPathStr = path.join(bazelWorkspacePath, include.path);
+
+    if(!fs.existsSync(absPathStr)) {
+      throw new Error(
+        `bazelAdditionalIncludes path "${absPathStr}" does not exist."`,
+      );
+    }
+
+    commandParts.push(`${include.type} ${absPathStr}`);
+  });
+
+  let commandUnboxed = commandParts.join(' ');
+  commandUnboxed =
+    commandUnboxed.replace(/ +-fno-canonical-system-headers/, '');
+
+  return {
+    command: commandUnboxed,
+    file: fileUnboxed,
+    directory: bazelWorkspacePath,
+  };
 };
 
 const args = process.argv.slice(2);

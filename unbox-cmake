@@ -44,16 +44,16 @@ const unbox = ({ command, file }, bazelWorkspacePath) => {
   const fileOrig = file;
 
   {
-    let pathStrMatch = file.match(bazelBuildTmpdirRegex);
-    if(pathStrMatch) {
-      const depName = pathStrMatch[2];
+    let pathMatch = file.match(bazelBuildTmpdirRegex);
+    if(pathMatch) {
+      const depName = pathMatch[2];
       const copyPathStr = path.join(depName, `copy_${depName}`, depName);
-      file = path.join(pathStrMatch[1], copyPathStr, pathStrMatch[3]);
+      file = path.join(pathMatch[1], copyPathStr, pathMatch[3]);
     }
 
-    pathStrMatch = file.match(bazelSandboxRegex);
-    if(pathStrMatch) {
-      let pathRelStr = pathStrMatch[1];
+    pathMatch = file.match(bazelSandboxRegex);
+    if(pathMatch) {
+      let pathRelStr = pathMatch[1];
       if(pathRelStr in bazelSandboxReplacements) {
         pathRelStr = bazelExtBuildDepReplacements[pathRelStr];
       };
@@ -124,27 +124,27 @@ const unbox = ({ command, file }, bazelWorkspacePath) => {
       pathStrOrig = path.normalize(pathStrOrig);
       let pathStrProc = pathStrOrig;
 
-      let pathStrMatch = pathStrProc.match(bazelExtBuildDepsRegex);
-      if(pathStrMatch) {
-        const depStr = pathStrMatch[1];
+      let pathMatch = pathStrProc.match(bazelExtBuildDepsRegex);
+      if(pathMatch) {
+        const depStr = pathMatch[1];
         if(depStr in bazelExtBuildDepReplacements) {
           pathStrProc = bazelExtBuildDepReplacements[depStr];
           pathStrProc = path.join(bazelWorkspacePath, pathStrProc);
         };
       }
 
-      pathStrMatch = pathStrProc.match(bazelBuildTmpdirRegex);
-      if(pathStrMatch) {
-        const depName = pathStrMatch[2];
+      pathMatch = pathStrProc.match(bazelBuildTmpdirRegex);
+      if(pathMatch) {
+        const depName = pathMatch[2];
         const copyPathStr = path.join(depName, `copy_${depName}`, depName);
-        pathStrProc = path.join(pathStrMatch[1], copyPathStr, pathStrMatch[3]);
+        pathStrProc = path.join(pathMatch[1], copyPathStr, pathMatch[3]);
         pathStrProc = path.join(bazelWorkspacePath, pathStrProc);
       }
 
       let unboxedAbsPathStr = pathStrProc;
-      pathStrMatch = pathStrProc.match(bazelSandboxRegex);
-      if(pathStrMatch) {
-        let unboxedRelPathStr = pathStrMatch[1];
+      pathMatch = pathStrProc.match(bazelSandboxRegex);
+      if(pathMatch) {
+        let unboxedRelPathStr = pathMatch[1];
         if(unboxedRelPathStr in bazelSandboxReplacements) {
           unboxedRelPathStr = bazelSandboxReplacements[unboxedRelPathStr];
         };
