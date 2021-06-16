@@ -62,12 +62,11 @@ const unbox = ({ command, file }, bazelWorkspacePath) => {
   }
 
   if(!fs.existsSync(file)) {
-    console.log(
-      [`file = ${file} does not exist.\n`,
+    throw new Error(
+      [`file = ${file} does not exist.`,
        `fileOrig = ${fileOrig}`,
-      ].join(''),
+      ].join(' '),
     );
-    process.exit(1);
   }
 
   command = command.trim(command);

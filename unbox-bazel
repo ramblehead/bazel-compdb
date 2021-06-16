@@ -22,14 +22,13 @@ const os = require("os");
 // bazelExecroot = path.join(bazelWorkspacePath, 'bazel-' + path.basename(bazelWorkspacePath));
 
 const bazelAdditionalIncludes = [
-  {
-    type: '-isystem',
-    path: 'bazel-out/k8-fastbuild/bin/external/wt/copy_wt/wt/wt.build_tmpdir/src',
-  }
+  // {
+  //   type: '-isystem',
+  //   path: 'bazel-out/k8-fastbuild/bin/external/wt/copy_wt/wt/wt.build_tmpdir',
+  // }
 ];
 
 const bazelExternalReplacements = {
-  'wt/wt/include': 'external/wt/src/src',
   'boost/boost/include/boost-1_76': 'external/boost/src',
   // As we are not cross-compiling, the host already has
   // all requred access to system libs. So, excluding it.
