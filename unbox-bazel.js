@@ -47,8 +47,6 @@ const packagesRelPathStr = 'packages';
 const tokeniseCommand = (
   /** @type {string} */ command,
 ) => {
-  command = command.trim(command);
-
   // Regexp selects quoted strings handling excaped characters
   let commandParts = command.trim().split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
 
@@ -58,19 +56,20 @@ const tokeniseCommand = (
     let last;
     if(result.length > 0) { last = result[result.length - 1]; }
     else { last = ''; }
-    if(last === '"' || last === "'") {
+    if(last === '"' || last === '\'') {
       result[result.length - 1] += value;
     }
-    else if(value === '"' || value === "'") {
+    else if(value === '"' || value === '\'') {
       result.push(value);
     }
     else {
       // Regexp selects non-white-space strings respecting escaped
       // white-space symbols
+      // eslint-disable-next-line no-param-reassign
       result = result.concat(value.split(/([^\s](?:[^\s\\]|\\.)*)/g));
     }
     return result;
-  }, []);
+  }, /** @type {string[]} */ ([]));
 
   // Re-join parts into LCI command options and parameters
   commandParts = commandParts.reduce((result, value) => {
@@ -86,14 +85,17 @@ const tokeniseCommand = (
     }
     else { result.push(value); }
     return result;
-  }, []);
+  }, /** @type {string[]} */ ([]));
 
   commandParts = commandParts.map((value) => value.trim());
 
   return commandParts;
 };
 
-const unboxBuildRootExternal = (file, bazelWorkspacePath) => {
+const unboxBuildRootExternal = (
+  /** @type {string} */ file,
+  /** @type {string} */ bazelWorkspacePath,
+) => {
   let fileUnboxed = null;
 
   // Strip quatations if any
@@ -117,7 +119,7 @@ const unboxBuildRootExternal = (file, bazelWorkspacePath) => {
     // should be excluded.
     if(replacementPathStr === '') { return ''; }
 
-    let absPathStr = path.join(bazelWorkspacePath, replacementPathStr);
+    const absPathStr = path.join(bazelWorkspacePath, replacementPathStr);
 
     if(fs.existsSync(absPathStr)) {
       fileUnboxed = absPathStr;
@@ -153,12 +155,15 @@ const unboxBuildRootExternal = (file, bazelWorkspacePath) => {
   // Add quatations if necessary
   if(fileUnboxed !== null && fileUnboxed.match(/\s/)) {
     fileUnboxed = `"${fileUnboxed}"`;
-  };
+  }
 
   return fileUnboxed;
 };
 
-const unboxBuildOutExternal = (file, bazelWorkspacePath) => {
+const unboxBuildOutExternal = (
+  /** @type {string} */ file,
+  /** @type {string} */ bazelWorkspacePath,
+) => {
   let fileUnboxed = null;
 
   // Strip quatations if any
@@ -199,13 +204,24 @@ const unboxBuildOutExternal = (file, bazelWorkspacePath) => {
   }
 
   // Add quatations if necessary
-  if(fileUnboxed.match(/\s/)) { fileUnboxed = `"${fileUnboxed}"`; }
+  if(fileUnboxed?.match(/\s/)) { fileUnboxed = `"${fileUnboxed}"`; }
 
   return fileUnboxed;
 };
 
-const unbox = ({ command, file }, bazelWorkspacePath, bazelExecroot) => {
+/**
+ * @typedef {{
+ *   command: string,
+ *   file: string,
+ *   directory: string,
+ * }} CompDbEntry
+ */
 
+const unbox = (
+  /** @type {CompDbEntry} */ { command, file },
+  /** @type {string} */ bazelWorkspacePath,
+  /** @type {string} */ bazelExecroot,
+) => {
   const fileUnboxed = unboxBuildRootExternal(file, bazelWorkspacePath);
 
   if(fileUnboxed === null) {
@@ -291,22 +307,22 @@ const unbox = ({ command, file }, bazelWorkspacePath, bazelExecroot) => {
 
 const args = process.argv.slice(2);
 
-if(!(args.length == 2 || args.length == 3)) {
+if(!(args.length === 2 || args.length === 3)) {
   console.log(
     ['Usage: unbox path/to/compile_commands.json',
      'bazel/workspace/path [include/prefix/path]',
-    ].join(' ')
+    ].join(' '),
   );
   process.exit();
 }
 
-const compileCommandsPath = args[0].replace("~", os.homedir);
+const compileCommandsPath = args[0].replace('~', os.homedir);
 
 if(!fs.existsSync(compileCommandsPath)) {
   throw compileCommandsPath +  ' file does not exist';
 }
 
-const bazelWorkspacePath = args[1].replace("~", os.homedir);
+const bazelWorkspacePath = args[1].replace('~', os.homedir);
 
 if(!fs.existsSync(bazelWorkspacePath)) {
   throw bazelWorkspacePath +  ' bazelWorkspacePath does not exist';
