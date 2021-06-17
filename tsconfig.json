@@ -8,8 +8,4 @@
     // "traceResolution": true,
     "noImplicitReturns": true,
   },
-  "files": [
-    "unbox-bazel.js",
-    "unbox-cmake.js",
-  ],
 }

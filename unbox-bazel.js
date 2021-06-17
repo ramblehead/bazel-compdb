@@ -1,9 +1,12 @@
 #!/usr/bin/env node
+// Hey Emacs, this is -*- coding: utf-8 -*-
 
 // eslint-disable-next-line max-len
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+
+const { tokeniseCommand } = require('./lib');
 
 // eslint-disable-next-line max-len
 // command = "/usr/bin/gcc-11 -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -std=c++20 -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -D BOOST_FUSION_DONT_USE_PREPROCESSED_FILES -D BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS -D BOOST_MPL_LIMIT_VECTOR_SIZE=50 -D FUSION_MAX_VECTOR_SIZE=30 -D BOOST_BIND_GLOBAL_PLACEHOLDERS -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/wui/_virtual_includes/wui -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/reflection/_virtual_includes/reflection -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx/server/_virtual_includes/server -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/debug/_virtual_includes/debug -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/signal_processors/_virtual_includes/signal_processors -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx/server/_virtual_includes/wtx_common -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/data_logger/_virtual_includes/data_logger -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/data_formaters/_virtual_includes/data_formaters -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/instrument_model/_virtual_includes/instrument_model -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/inline/_virtual_includes/inline -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/modules_connection/_virtual_includes/modules_connection -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/persistence/_virtual_includes/persistence -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/system_logger/_virtual_includes/system_logger -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/utils/_virtual_includes/utils -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/config/_virtual_includes/config -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/physical_values/_virtual_includes/physical_values -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/wui_controller/_virtual_includes/wui_controller -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/state_machine/_virtual_includes/state_machine -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/host -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/cpp_utils -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/wtx -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/system -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/bazel_tools -isystem /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wt/wt/include -isystem /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/boost/boost/include/boost-1_76 -x c++ -c /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/host/server/s600-host.cpp"
@@ -44,53 +47,53 @@ const bazelBuildRootExternalRegex = RegExp('^external(?:/(.+))$');
 
 const packagesRelPathStr = 'packages';
 
-const tokeniseCommand = (
-  /** @type {string} */ command,
-) => {
-  // Regexp selects quoted strings handling excaped characters
-  let commandParts = command.trim().split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
+// const tokeniseCommand = (
+//   /** @type {string} */ command,
+// ) => {
+//   // Regexp selects quoted strings handling excaped characters
+//   let commandParts = command.trim().split(/(['"])((?:[^\1\\]|\\.)*?\1)/g);
 
-  // Re-split commandParts into white space and not-white space
-  // respecting quatations and excaped characters
-  commandParts = commandParts.reduce((result, value) => {
-    let last;
-    if(result.length > 0) { last = result[result.length - 1]; }
-    else { last = ''; }
-    if(last === '"' || last === '\'') {
-      result[result.length - 1] += value;
-    }
-    else if(value === '"' || value === '\'') {
-      result.push(value);
-    }
-    else {
-      // Regexp selects non-white-space strings respecting escaped
-      // white-space symbols
-      // eslint-disable-next-line no-param-reassign
-      result = result.concat(value.split(/([^\s](?:[^\s\\]|\\.)*)/g));
-    }
-    return result;
-  }, /** @type {string[]} */ ([]));
+//   // Re-split commandParts into white space and not-white space
+//   // respecting quatations and excaped characters
+//   commandParts = commandParts.reduce((result, value) => {
+//     let last;
+//     if(result.length > 0) { last = result[result.length - 1]; }
+//     else { last = ''; }
+//     if(last === '"' || last === '\'') {
+//       result[result.length - 1] += value;
+//     }
+//     else if(value === '"' || value === '\'') {
+//       result.push(value);
+//     }
+//     else {
+//       // Regexp selects non-white-space strings respecting escaped
+//       // white-space symbols
+//       // eslint-disable-next-line no-param-reassign
+//       result = result.concat(value.split(/([^\s](?:[^\s\\]|\\.)*)/g));
+//     }
+//     return result;
+//   }, /** @type {string[]} */ ([]));
 
-  // Re-join parts into LCI command options and parameters
-  commandParts = commandParts.reduce((result, value) => {
-    if(value === '') { return result; }
-    let last;
-    if(result.length > 0) { last = result[result.length - 1]; }
-    else { last = ''; }
-    if(last.match(/^(?:-I|-isystem|-iquote|-c|-x)\s*$/) ||
-       last.match(/=\s*$/) ||
-       value.match(/^\s+$/)
-    ) {
-      result[result.length - 1] += value;
-    }
-    else { result.push(value); }
-    return result;
-  }, /** @type {string[]} */ ([]));
+//   // Re-join parts into LCI command options and parameters
+//   commandParts = commandParts.reduce((result, value) => {
+//     if(value === '') { return result; }
+//     let last;
+//     if(result.length > 0) { last = result[result.length - 1]; }
+//     else { last = ''; }
+//     if(last.match(/^(?:-I|-isystem|-iquote|-c|-x)\s*$/) ||
+//        last.match(/=\s*$/) ||
+//        value.match(/^\s+$/)
+//     ) {
+//       result[result.length - 1] += value;
+//     }
+//     else { result.push(value); }
+//     return result;
+//   }, /** @type {string[]} */ ([]));
 
-  commandParts = commandParts.map((value) => value.trim());
+//   commandParts = commandParts.map((value) => value.trim());
 
-  return commandParts;
-};
+//   return commandParts;
+// };
 
 const unboxBuildRootExternal = (
   /** @type {string} */ file,
@@ -220,7 +223,6 @@ const unboxBuildOutExternal = (
 const unbox = (
   /** @type {CompDbEntry} */ { command, file },
   /** @type {string} */ bazelWorkspacePath,
-  // /** @type {string} */ bazelExecroot,
 ) => {
   const fileUnboxed = unboxBuildRootExternal(file, bazelWorkspacePath);
 
@@ -288,12 +290,10 @@ const unbox = (
 const args = process.argv.slice(2);
 
 if(!(args.length === 2 || args.length === 3)) {
-  console.log(
-    ['Usage: unbox path/to/compile_commands.json',
-     'bazel/workspace/path [include/prefix/path]',
-    ].join(' '),
-  );
-  process.exit();
+  throw new Error([
+    'Usage: unbox path/to/compile_commands.json',
+    'bazel/workspace/path [include/prefix/path]',
+  ].join(' '));
 }
 
 const compileCommandsPath = args[0].replace('~', os.homedir);
