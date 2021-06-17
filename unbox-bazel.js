@@ -220,7 +220,7 @@ const unboxBuildOutExternal = (
 const unbox = (
   /** @type {CompDbEntry} */ { command, file },
   /** @type {string} */ bazelWorkspacePath,
-  /** @type {string} */ bazelExecroot,
+  // /** @type {string} */ bazelExecroot,
 ) => {
   const fileUnboxed = unboxBuildRootExternal(file, bazelWorkspacePath);
 
@@ -233,29 +233,9 @@ const unbox = (
   let commandParts = tokeniseCommand(command);
 
   commandParts = commandParts.reduce((result, value) => {
-    let valueMatch = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
+    const valueMatch = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
     if(valueMatch) {
-      let pathStr = valueMatch[2];
-      // if(pathStr === '.') { return result; }
-      // Strip quatations if any
-      // pathStr = pathStr.replace(/^["']?(.+?)["']?$/, '$1');
-      // if(fs.existsSync(pathStr)) {
-      //   pathStr = pathStr.replace(
-      //     RegExp(`^${path.join(bazelWorkspacePath, '/')}`),
-      //     '',
-      //   );
-
-      //   const pathStrSuffix = pathStr.replace(bazelOutExternalRegex, '');
-      //   if(pathStrSuffix in bazelExternalReplacements) {
-      //     pathStr = bazelExternalReplacements[pathStrSuffix];
-      //   }
-
-      //   if(pathStr.match(/\s/)) { pathStr = '"' + pathStr + '"'; };
-
-      //   value = valueMatch[1] + ' ' + pathStr + valueMatch[3];
-      //   result.push(value);
-      // }
-
+      const pathStr = valueMatch[2];
       let unboxedPathStr = unboxBuildRootExternal(pathStr, bazelWorkspacePath);
       if(unboxedPathStr === '') { return result; }
       if(unboxedPathStr === null) {
@@ -268,18 +248,18 @@ const unbox = (
         );
       }
 
-      value = valueMatch[1] + ' ' + unboxedPathStr + valueMatch[3];
-      result.push(value);
+      const unboxedValue = `${valueMatch[1]} ${unboxedPathStr}${valueMatch[3]}`;
+      result.push(unboxedValue);
     }
     else { result.push(value); }
     return result;
-  }, []);
+  }, /** @type {string[]} */ ([]));
 
   bazelAdditionalIncludes.forEach((include) => {
     if(!['-I', '-isystem', '-iquote'].includes(include.type)) {
       throw new Error([
         `bazelAdditionalIncludes type in "${include}".`,
-        'Only allowed types are -I, -isystem, -iquote.'
+        'Only allowed types are -I, -isystem, -iquote.',
       ].join(' '));
     }
 
@@ -319,33 +299,37 @@ if(!(args.length === 2 || args.length === 3)) {
 const compileCommandsPath = args[0].replace('~', os.homedir);
 
 if(!fs.existsSync(compileCommandsPath)) {
-  throw compileCommandsPath +  ' file does not exist';
+  throw Error(`${compileCommandsPath} file does not exist`);
 }
 
 const bazelWorkspacePath = args[1].replace('~', os.homedir);
 
 if(!fs.existsSync(bazelWorkspacePath)) {
-  throw bazelWorkspacePath +  ' bazelWorkspacePath does not exist';
+  throw Error(`${bazelWorkspacePath} bazelWorkspacePath does not exist`);
 }
 
 const includePrefixPath =
   args[3] === undefined ? null : path.join(args[3], path.sep);
 
-let commandsString = fs.readFileSync(compileCommandsPath, 'utf8');
-const commandsIn = JSON.parse(commandsString);
+const compDbString = fs.readFileSync(compileCommandsPath, 'utf8');
+
+/** @type {CompDbEntry[]} */
+const compDb = JSON.parse(compDbString);
+
+/** @type {CompDbEntry[]} */
 const commandsOut = [];
 
 if(includePrefixPath === null) {
-  for(let command of commandsIn) {
-    commandsOut.push(unbox(command, bazelWorkspacePath));
-  }
+  compDb.forEach((compDbEntry) => (
+    commandsOut.push(unbox(compDbEntry, bazelWorkspacePath))
+  ));
 }
 else {
-  for(let command of commandsIn) {
-    if(command.file.startsWith(includePrefixPath)) {
-      commandsOut.push(unbox(command, bazelWorkspacePath));
+  compDb.forEach((compDbEntry) => {
+    if(compDbEntry.file.startsWith(includePrefixPath)) {
+      commandsOut.push(unbox(compDbEntry, bazelWorkspacePath));
     }
-  }
+  });
 }
 
 fs.writeFileSync(compileCommandsPath, JSON.stringify(commandsOut, null, 2));
