@@ -348,5 +348,4 @@ else {
   }
 }
 
-
 fs.writeFileSync(compileCommandsPath, JSON.stringify(commandsOut, null, 2));
