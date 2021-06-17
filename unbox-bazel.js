@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Hey Emacs, this is -*- coding: utf-8 -*-
 
-// eslint-disable-next-line max-len
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
