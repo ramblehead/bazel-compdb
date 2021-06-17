@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 
-const config = require('../../utils/configs/base/eslint.config.js');
+const config = require('../../utils/configs/base/eslint.config');
 
 module.exports = {
   ...config,
