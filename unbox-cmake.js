@@ -56,7 +56,7 @@ const unbox = ({ command, file }, bazelWorkspacePath) => {
       let pathRelStr = pathMatch[1];
       if(pathRelStr in bazelSandboxReplacements) {
         pathRelStr = bazelExtBuildDepReplacements[pathRelStr];
-      };
+      }
       file = path.join(bazelWorkspacePath, pathRelStr);
     }
   }

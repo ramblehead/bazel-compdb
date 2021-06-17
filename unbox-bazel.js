@@ -1,40 +1,40 @@
 #!/usr/bin/env node
-/* global require process */
 
+// eslint-disable-next-line max-len
 const fs = require('fs');
 const path = require('path');
-const os = require("os");
+const os = require('os');
 
+// eslint-disable-next-line max-len
 // command = "/usr/bin/gcc-11 -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -std=c++20 -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -D BOOST_FUSION_DONT_USE_PREPROCESSED_FILES -D BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS -D BOOST_MPL_LIMIT_VECTOR_SIZE=50 -D FUSION_MAX_VECTOR_SIZE=30 -D BOOST_BIND_GLOBAL_PLACEHOLDERS -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/wui/_virtual_includes/wui -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/reflection/_virtual_includes/reflection -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx/server/_virtual_includes/server -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/debug/_virtual_includes/debug -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/signal_processors/_virtual_includes/signal_processors -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx/server/_virtual_includes/wtx_common -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/data_logger/_virtual_includes/data_logger -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/data_formaters/_virtual_includes/data_formaters -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/instrument_model/_virtual_includes/instrument_model -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils/inline/_virtual_includes/inline -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/modules_connection/_virtual_includes/modules_connection -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/persistence/_virtual_includes/persistence -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/system_logger/_virtual_includes/system_logger -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/utils/_virtual_includes/utils -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/config/_virtual_includes/config -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/physical_values/_virtual_includes/physical_values -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/wui_controller/_virtual_includes/wui_controller -I /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host/server/state_machine/_virtual_includes/state_machine -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/host -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/host -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/cpp_utils -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/cpp_utils -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/wtx -iquote /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wtx -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/system -iquote /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/bazel_tools -isystem /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/wt/wt/include -isystem /home/rh/box/cambustion/s600-solution-n/bazel-out/k8-fastbuild/bin/external/boost/boost/include/boost-1_76 -x c++ -c /home/rh/box/cambustion/s600-solution-n/bazel-s600-solution-n/external/host/server/s600-host.cpp"
 
+// eslint-disable-next-line max-len
 // command =  "/usr/bin/g++-11 -DBOOST_ALL_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_RANDOM_DYN_LINK -DBOOST_REGEX_DYN_LINK -DBOOST_SPIRIT_THREADSAFE -DBOOST_SYSTEM_DYN_LINK -DBOOST_THREAD_DYN_LINK -DGLEW_STATIC -DHAVE_GRAPHICSMAGICK -DHAVE_PDF_IMAGE -DWT_BUILDING -DWT_FONTSUPPORT_SIMPLE -DWT_WITH_OLD_INTERNALPATH_API -D_REENTRANT -Dwt_EXPORTS -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/bazel-out/k8-fastbuild/bin/external/wt/wt.build_tmpdir -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src/web -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/bazel-out/k8-fastbuild/bin/external/wt/wt.build_tmpdir/src -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src/Wt/Dbo/backend/amalgamation -I/home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src/3rdparty/glew-1.10.0/include -I/usr/include/GraphicsMagick -isystem /home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/bazel-out/k8-fastbuild/bin/external/wt/wt.ext_build_deps/boost/include/boost-1_76 -pipe -feliminate-unused-debug-types -Wno-unused-parameter -std=c++20 -O2 -g -DNDEBUG -fPIC -o CMakeFiles/wt.dir/Wt/ServerSideFontMetrics.C.o -c /home/rh/.cache/bazel/_bazel_rh/7f2ec843b2bb9df2c5800cb918fd66bf/sandbox/linux-sandbox/2/execroot/s600-solution-2/external/wt/src/src/Wt/ServerSideFontMetrics.C"
 
+// eslint-disable-next-line no-tabs, max-len
 // command = "   	/usr/bin/gcc     -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -f\"no -canonical-system-headers\" -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I \"bazel- out/k8-fastbuild/bin/server/_virtual_includes/server\" -I'bazel-out/ k8-fastbuild/bin/external/wt/_virtual_includes/wt' -I bazel\\ -out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/genfiles -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/genfiles/external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/genfiles/external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/genfiles/external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp  /usr/bin/gcc ";
 
-// Old Bazel
-// command = "/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -fno-canonical-system-headers -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I bazel-out/k8-fastbuild/bin/server/_virtual_includes/server -I bazel-out/k8-fastbuild/bin/external/wt/_virtual_includes/wt -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/genfiles -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/genfiles/external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/genfiles/external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/genfiles/external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp";
-
-// New Bazel
+// eslint-disable-next-line max-len
 // command = "/usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer -std=c++0x -fno-canonical-system-headers -Wno-builtin-macro-redefined -D__DATE__=\"redacted\" -D__TIMESTAMP__=\"redacted\" -D__TIME__=\"redacted\" -I bazel-out/k8-fastbuild/bin/server/_virtual_includes/server -I bazel-out/k8-fastbuild/bin/external/wt/_virtual_includes/wt -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/reflection/_virtual_includes/reflection -I bazel-out/k8-fastbuild/bin/external/rh_cpp_utils/debug/_virtual_includes/debug -iquote . -iquote bazel-out/k8-fastbuild/bin -iquote external/wt -iquote bazel-out/k8-fastbuild/bin/external/wt -iquote external/system -iquote bazel-out/k8-fastbuild/bin/external/system -iquote external/rh_cpp_utils -iquote bazel-out/k8-fastbuild/bin/external/rh_cpp_utils -x c++ -c server/wtx/SimpleComboBox.cpp"
 
 // bazelWorkspacePath = "/home/rh/box/cambustion/s600-solution-n";
 // file = "server/wtx/SimpleComboBox.cpp";
-// bazelExecroot = path.join(bazelWorkspacePath, 'bazel-' + path.basename(bazelWorkspacePath));
 
-const bazelAdditionalIncludes = [
-  // {
-  //   type: '-isystem',
-  //   path: 'bazel-out/k8-fastbuild/bin/external/wt/copy_wt/wt/wt.build_tmpdir',
-  // }
-];
+/** @type {{ type: string, path: string }[]} */
+const bazelAdditionalIncludes = [{
+  type: '-isystem',
+  path: 'bazel-out/k8-fastbuild/bin/external/' +
+    'wt/copy_wt/wt/wt.build_tmpdir',
+}];
 
+/** @type {Record<string, string>} */
 const bazelExternalReplacements = {
   'boost/boost/include/boost-1_76': 'external/boost/src',
   // As we are not cross-compiling, the host already has
   // all requred access to system libs. So, excluding it.
-  'system': '',
+  system: '',
   // Bazel tools lib is not used in this project.
-  'bazel_tools': '',
+  bazel_tools: '',
 };
 
 const bazelOutExternalRegex =
@@ -44,7 +44,9 @@ const bazelBuildRootExternalRegex = RegExp('^external(?:/(.+))$');
 
 const packagesRelPathStr = 'packages';
 
-const tokeniseCommand = (command) => {
+const tokeniseCommand = (
+  /** @type {string} */ command,
+) => {
   command = command.trim(command);
 
   // Regexp selects quoted strings handling excaped characters
@@ -55,7 +57,7 @@ const tokeniseCommand = (command) => {
   commandParts = commandParts.reduce((result, value) => {
     let last;
     if(result.length > 0) { last = result[result.length - 1]; }
-    else last = '';
+    else { last = ''; }
     if(last === '"' || last === "'") {
       result[result.length - 1] += value;
     }
@@ -197,7 +199,7 @@ const unboxBuildOutExternal = (file, bazelWorkspacePath) => {
   }
 
   // Add quatations if necessary
-  if(fileUnboxed.match(/\s/)) { fileUnboxed = `"${fileUnboxed}"`; };
+  if(fileUnboxed.match(/\s/)) { fileUnboxed = `"${fileUnboxed}"`; }
 
   return fileUnboxed;
 };
