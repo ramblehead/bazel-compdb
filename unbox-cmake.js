@@ -25,41 +25,63 @@ const bazelBuildTmpdirRegex =
 const bazelExtBuildDepsRegex =
   /^\/.+?\/sandbox\/.+?\/execroot\/.+?\/.+?\/.+\.ext_build_deps\/(.+)$/;
 
-const unbox = ({ command, file }, bazelWorkspacePath) => {
-  const fileOrig = file;
+const unboxBuildTmpdir = (
+  /** @type {string} */ file,
+  /** @type {string} */ bazelWorkspacePath,
+) => {
+  let fileUnboxed = null;
 
-  {
-    let pathMatch = file.match(bazelBuildTmpdirRegex);
-    if(pathMatch) {
-      const depName = pathMatch[2];
-      const copyPathStr = path.join(depName, `copy_${depName}`, depName);
-      file = path.join(pathMatch[1], copyPathStr, pathMatch[3]);
-    }
+  let pathStr = file;
 
-    pathMatch = file.match(bazelSandboxRegex);
-    if(pathMatch) {
-      let pathRelStr = pathMatch[1];
-      if(pathRelStr in bazelSandboxReplacements) {
-        pathRelStr = bazelExtBuildDepReplacements[pathRelStr];
-      }
-      file = path.join(bazelWorkspacePath, pathRelStr);
-    }
+  let pathMatch = file.match(bazelBuildTmpdirRegex);
+  if(pathMatch) {
+    const depName = pathMatch[2];
+    const copyPathStr = path.join(depName, `copy_${depName}`, depName);
+    pathStr = path.join(pathMatch[1], copyPathStr, pathMatch[3]);
   }
 
-  if(!fs.existsSync(file)) {
+  pathMatch = pathStr.match(bazelSandboxRegex);
+  if(pathMatch) {
+    let pathRelStr = pathMatch[1];
+    if(pathRelStr in bazelSandboxReplacements) {
+      pathRelStr = bazelExtBuildDepReplacements[pathRelStr];
+    }
+    pathStr = path.join(bazelWorkspacePath, pathRelStr);
+  }
+
+  if(fs.existsSync(pathStr)) {
+    fileUnboxed = pathStr;
+  }
+
+  return fileUnboxed;
+};
+
+/**
+ * @typedef {{
+ *   command: string,
+ *   file: string,
+ *   directory: string,
+ * }} CompDbEntry
+ */
+
+const unbox = (
+  /** @type {CompDbEntry} */ { command, file },
+  /** @type {string} */ bazelWorkspacePath,
+) => {
+  const fileUnboxed = unboxBuildTmpdir(file, bazelWorkspacePath);
+
+  if(fileUnboxed === null) {
     throw new Error(
-      [`file = ${file} does not exist.`,
-       `fileOrig = ${fileOrig}`,
-      ].join(' '),
+      `"${fileUnboxed}" does not exist. Original file = "${file}."`,
     );
   }
 
   let commandParts = tokeniseCommand(command);
 
   commandParts = commandParts.reduce((result, value) => {
-    let m = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
-    if(m) {
-      let pathStrOrig = m[2];
+    const valueMatch = value.match(/^(-I|-isystem|-iquote|-c)\s*(.*?)(\s*)$/);
+    if(valueMatch) {
+      let pathStrOrig = valueMatch[2];
       if(pathStrOrig === '.') {
         result.push(value);
         return result;
@@ -75,7 +97,7 @@ const unbox = ({ command, file }, bazelWorkspacePath) => {
         if(depStr in bazelExtBuildDepReplacements) {
           pathStrProc = bazelExtBuildDepReplacements[depStr];
           pathStrProc = path.join(bazelWorkspacePath, pathStrProc);
-        };
+        }
       }
 
       pathMatch = pathStrProc.match(bazelBuildTmpdirRegex);
@@ -92,7 +114,7 @@ const unbox = ({ command, file }, bazelWorkspacePath) => {
         let unboxedRelPathStr = pathMatch[1];
         if(unboxedRelPathStr in bazelSandboxReplacements) {
           unboxedRelPathStr = bazelSandboxReplacements[unboxedRelPathStr];
-        };
+        }
         unboxedAbsPathStr =
           path.join(bazelWorkspacePath, unboxedRelPathStr);
       }
@@ -110,62 +132,70 @@ const unbox = ({ command, file }, bazelWorkspacePath) => {
         process.exit(1);
       }
 
-      if(pathStrProc.match(/\s/)) { pathStrProc = `"${pathStrProc}"`; };
-      value = `${m[1]} ${pathStrProc}${m[3]}`;
+      if(pathStrProc.match(/\s/)) { pathStrProc = `"${pathStrProc}"`; }
+
+      // eslint-disable-next-line no-param-reassign
+      value = `${valueMatch[1]} ${pathStrProc}${valueMatch[3]}`;
       result.push(value);
     }
     else { result.push(value); }
     return result;
-  }, []);
+  }, /** @type {string[]} */ ([]));
 
-  command = commandParts.join('');
-  command = command.replace(/ +-fno-canonical-system-headers/, '');
+  let commandUnboxed = commandParts.join(' ');
+  commandUnboxed =
+    commandUnboxed.replace(/ +-fno-canonical-system-headers/, '');
 
-  return { command, file, directory: bazelWorkspacePath };
+  return {
+    command: commandUnboxed,
+    file: fileUnboxed,
+    directory: bazelWorkspacePath,
+  };
 };
 
 const args = process.argv.slice(2);
 
-if(!(args.length == 2 || args.length == 3)) {
-  console.log(
-    ['Usage: unbox path/to/compile_commands.json',
-     'bazel/workspace/path [include/prefix/path]',
-    ].join(' ')
-  );
-  process.exit();
+if(!(args.length === 2 || args.length === 3)) {
+  throw new Error([
+    'Usage: unbox path/to/compile_commands.json',
+    'bazel/workspace/path [include/prefix/path]',
+  ].join(' '));
 }
 
-const compileCommandsPath = args[0].replace("~", os.homedir);
+const compileCommandsPath = args[0].replace('~', os.homedir);
 
 if(!fs.existsSync(compileCommandsPath)) {
-  throw compileCommandsPath +  ' file does not exist';
+  throw Error(`${compileCommandsPath} file does not exist`);
 }
 
-const bazelWorkspacePath = args[1].replace("~", os.homedir);
+const bazelWorkspacePath = args[1].replace('~', os.homedir);
 
 if(!fs.existsSync(bazelWorkspacePath)) {
-  throw bazelWorkspacePath +  ' bazelWorkspacePath does not exist';
+  throw Error(`${bazelWorkspacePath} bazelWorkspacePath does not exist`);
 }
 
 const includePrefixPath =
   args[3] === undefined ? null : path.join(args[3], path.sep);
 
-let commandsString = fs.readFileSync(compileCommandsPath, 'utf8');
-const commandsIn = JSON.parse(commandsString);
-const commandsOut = [];
+const compDbString = fs.readFileSync(compileCommandsPath, 'utf8');
+
+/** @type {CompDbEntry[]} */
+const compDbIn = JSON.parse(compDbString);
+
+/** @type {CompDbEntry[]} */
+const compDbOut = [];
 
 if(includePrefixPath === null) {
-  for(let command of commandsIn) {
-    commandsOut.push(unbox(command, bazelWorkspacePath));
-  }
+  compDbIn.forEach((compDbEntry) => (
+    compDbOut.push(unbox(compDbEntry, bazelWorkspacePath))
+  ));
 }
 else {
-  for(let command of commandsIn) {
-    if(command.file.startsWith(includePrefixPath)) {
-      commandsOut.push(unbox(command, bazelWorkspacePath));
+  compDbIn.forEach((compDbEntry) => {
+    if(compDbEntry.file.startsWith(includePrefixPath)) {
+      compDbOut.push(unbox(compDbEntry, bazelWorkspacePath));
     }
-  }
+  });
 }
 
-
-fs.writeFileSync(compileCommandsPath, JSON.stringify(commandsOut, null, 2));
+fs.writeFileSync(compileCommandsPath, JSON.stringify(compDbOut, null, 2));
