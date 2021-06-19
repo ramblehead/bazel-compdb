@@ -49,19 +49,8 @@ const { tokeniseCommand } = require('./lib');
 
 /** @type {Config} */
 let config = {
-  bazelAdditionalIncludes: [{
-    type: '-isystem',
-    path: 'bazel-out/k8-fastbuild/bin/external/' +
-      'wt/copy_wt/wt/wt.build_tmpdir',
-  }],
-  bazelExternalReplacements: {
-    'boost/boost/include/boost-1_76': 'external/boost/src',
-    // As we are not cross-compiling, the host already has
-    // all requred access to system libs. So, excluding it.
-    system: '',
-    // Bazel tools lib is not used in this project.
-    bazel_tools: '',
-  },
+  bazelAdditionalIncludes: [],
+  bazelExternalReplacements: {},
   includePrefixPath: null,
 };
 
