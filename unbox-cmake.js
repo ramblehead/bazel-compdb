@@ -7,14 +7,25 @@ const os = require('os');
 
 const { tokeniseCommand } = require('./lib');
 
-const bazelExtBuildDepReplacements = {
-  'boost/include/boost-1_76': 'external/boost/src',
-};
+// const bazelExtBuildDepReplacements = {
+//   'boost/include/boost-1_76': 'external/boost/src',
+// };
 
-const bazelSandboxReplacements = {
+// const bazelSandboxReplacements = {
+//   'external/wt/src/src/wt': 'external/wt/src/src/Wt',
+//   'external/wt/src/examples/onethread/lib':
+//     'external/wt/src/examples/onethread',
+// };
+
+const config = {
+  bazelExtBuildDepReplacements: {
+    'boost/include/boost-1_76': 'external/boost/src',
+  },
+  bazelSandboxReplacements: {
   'external/wt/src/src/wt': 'external/wt/src/src/Wt',
   'external/wt/src/examples/onethread/lib':
     'external/wt/src/examples/onethread',
+  },
 };
 
 const bazelSandboxRegex = /^\/.+?\/sandbox\/.+?\/execroot\/.+?\/(.+)$/;
@@ -43,8 +54,8 @@ const unboxBuildTmpdir = (
   pathMatch = pathStr.match(bazelSandboxRegex);
   if(pathMatch) {
     let pathRelStr = pathMatch[1];
-    if(pathRelStr in bazelSandboxReplacements) {
-      pathRelStr = bazelExtBuildDepReplacements[pathRelStr];
+    if(pathRelStr in config.bazelSandboxReplacements) {
+      pathRelStr = config.bazelExtBuildDepReplacements[pathRelStr];
     }
     pathStr = path.join(bazelWorkspacePath, pathRelStr);
   }
@@ -94,8 +105,8 @@ const unbox = (
       let pathMatch = pathStrProc.match(bazelExtBuildDepsRegex);
       if(pathMatch) {
         const depStr = pathMatch[1];
-        if(depStr in bazelExtBuildDepReplacements) {
-          pathStrProc = bazelExtBuildDepReplacements[depStr];
+        if(depStr in config.bazelExtBuildDepReplacements) {
+          pathStrProc = config.bazelExtBuildDepReplacements[depStr];
           pathStrProc = path.join(bazelWorkspacePath, pathStrProc);
         }
       }
@@ -112,8 +123,9 @@ const unbox = (
       pathMatch = pathStrProc.match(bazelSandboxRegex);
       if(pathMatch) {
         let unboxedRelPathStr = pathMatch[1];
-        if(unboxedRelPathStr in bazelSandboxReplacements) {
-          unboxedRelPathStr = bazelSandboxReplacements[unboxedRelPathStr];
+        if(unboxedRelPathStr in config.bazelSandboxReplacements) {
+          unboxedRelPathStr =
+            config.bazelSandboxReplacements[unboxedRelPathStr];
         }
         unboxedAbsPathStr =
           path.join(bazelWorkspacePath, unboxedRelPathStr);
