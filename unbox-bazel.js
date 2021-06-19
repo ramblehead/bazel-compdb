@@ -22,21 +22,47 @@ const { tokeniseCommand } = require('./lib');
 // bazelWorkspacePath = "/home/rh/box/cambustion/s600-solution-n";
 // file = "server/wtx/SimpleComboBox.cpp";
 
-/** @type {{ type: string, path: string }[]} */
-const bazelAdditionalIncludes = [{
-  type: '-isystem',
-  path: 'bazel-out/k8-fastbuild/bin/external/' +
-    'wt/copy_wt/wt/wt.build_tmpdir',
-}];
+// /** @type {{ type: string, path: string }[]} */
+// const bazelAdditionalIncludes = [{
+//   type: '-isystem',
+//   path: 'bazel-out/k8-fastbuild/bin/external/' +
+//     'wt/copy_wt/wt/wt.build_tmpdir',
+// }];
 
-/** @type {Record<string, string>} */
-const bazelExternalReplacements = {
-  'boost/boost/include/boost-1_76': 'external/boost/src',
-  // As we are not cross-compiling, the host already has
-  // all requred access to system libs. So, excluding it.
-  system: '',
-  // Bazel tools lib is not used in this project.
-  bazel_tools: '',
+// /** @type {Record<string, string>} */
+// const bazelExternalReplacements = {
+//   'boost/boost/include/boost-1_76': 'external/boost/src',
+//   // As we are not cross-compiling, the host already has
+//   // all requred access to system libs. So, excluding it.
+//   system: '',
+//   // Bazel tools lib is not used in this project.
+//   bazel_tools: '',
+// };
+
+/**
+ * @typedef {{
+ *   bazelAdditionalIncludes: { type: string, path: string }[],
+ *   bazelExternalReplacements: Record<string, string>,
+ *   includePrefixPath: string | null,
+ * }} Config
+ */
+
+/** @type {Config} */
+let config = {
+  bazelAdditionalIncludes: [{
+    type: '-isystem',
+    path: 'bazel-out/k8-fastbuild/bin/external/' +
+      'wt/copy_wt/wt/wt.build_tmpdir',
+  }],
+  bazelExternalReplacements: {
+    'boost/boost/include/boost-1_76': 'external/boost/src',
+    // As we are not cross-compiling, the host already has
+    // all requred access to system libs. So, excluding it.
+    system: '',
+    // Bazel tools lib is not used in this project.
+    bazel_tools: '',
+  },
+  includePrefixPath: null,
 };
 
 const bazelOutExternalRegex =
@@ -66,8 +92,8 @@ const unboxBuildRootExternal = (
 
   const relPathStr = pathMatch[1];
 
-  if(relPathStr in bazelExternalReplacements) {
-    const replacementPathStr = bazelExternalReplacements[relPathStr];
+  if(relPathStr in config.bazelExternalReplacements) {
+    const replacementPathStr = config.bazelExternalReplacements[relPathStr];
 
     // Empty string is used to indicate that this path
     // should be excluded.
@@ -138,8 +164,8 @@ const unboxBuildOutExternal = (
 
   const relPathStr = pathMatch[1];
 
-  if(relPathStr in bazelExternalReplacements) {
-    const replacementPathStr = bazelExternalReplacements[relPathStr];
+  if(relPathStr in config.bazelExternalReplacements) {
+    const replacementPathStr = config.bazelExternalReplacements[relPathStr];
 
     // Empty string is used to indicate that this path
     // should be excluded.
@@ -208,7 +234,7 @@ const unbox = (
     return result;
   }, /** @type {string[]} */ ([]));
 
-  bazelAdditionalIncludes.forEach((include) => {
+  config.bazelAdditionalIncludes.forEach((include) => {
     if(!['-I', '-isystem', '-iquote'].includes(include.type)) {
       throw new Error([
         `bazelAdditionalIncludes type in "${include}".`,
@@ -259,8 +285,20 @@ if(!fs.existsSync(bazelWorkspacePath)) {
   throw Error(`${bazelWorkspacePath} bazelWorkspacePath does not exist`);
 }
 
-const includePrefixPath =
-  args[3] === undefined ? null : path.join(args[3], path.sep);
+if(args[2] !== undefined) {
+  const unboxConfigPath = args[2].replace('~', os.homedir);
+
+  if(!fs.existsSync(unboxConfigPath)) {
+    throw Error(`${unboxConfigPath} unbox config does not exist`);
+  }
+
+  const userConfigString = fs.readFileSync(unboxConfigPath, 'utf8');
+
+  /** @type {Config} */
+  const userConfig = JSON.parse(userConfigString);
+
+  config = { ...config, ...userConfig };
+}
 
 const compDbString = fs.readFileSync(compileCommandsPath, 'utf8');
 
@@ -270,14 +308,16 @@ const compDbIn = JSON.parse(compDbString);
 /** @type {CompDbEntry[]} */
 const compDbOut = [];
 
-if(includePrefixPath === null) {
+if(config.includePrefixPath === null) {
   compDbIn.forEach((compDbEntry) => (
     compDbOut.push(unbox(compDbEntry, bazelWorkspacePath))
   ));
 }
 else {
   compDbIn.forEach((compDbEntry) => {
-    if(compDbEntry.file.startsWith(includePrefixPath)) {
+    if(compDbEntry.file.startsWith(
+      /** @type {string} */ (config.includePrefixPath),
+    )) {
       compDbOut.push(unbox(compDbEntry, bazelWorkspacePath));
     }
   });

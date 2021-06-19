@@ -164,7 +164,7 @@ const args = process.argv.slice(2);
 if(!(args.length === 2 || args.length === 3)) {
   throw new Error([
     'Usage: unbox path/to/compile_commands.json',
-    'bazel/workspace/path [path/to/unbox.config.json]',
+    'bazel/workspace/path [path/to/unbox-cmake.config.json]',
   ].join(' '));
 }
 
