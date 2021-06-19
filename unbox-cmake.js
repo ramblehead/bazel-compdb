@@ -7,25 +7,19 @@ const os = require('os');
 
 const { tokeniseCommand } = require('./lib');
 
-// const bazelExtBuildDepReplacements = {
-//   'boost/include/boost-1_76': 'external/boost/src',
-// };
+/**
+ * @typedef {{
+ *   bazelExtBuildDepReplacements: Record<string, string>,
+ *   bazelSandboxReplacements: Record<string, string>,
+ *   includePrefixPath: string | null,
+ * }} Config
+ */
 
-// const bazelSandboxReplacements = {
-//   'external/wt/src/src/wt': 'external/wt/src/src/Wt',
-//   'external/wt/src/examples/onethread/lib':
-//     'external/wt/src/examples/onethread',
-// };
-
-const config = {
-  bazelExtBuildDepReplacements: {
-    'boost/include/boost-1_76': 'external/boost/src',
-  },
-  bazelSandboxReplacements: {
-  'external/wt/src/src/wt': 'external/wt/src/src/Wt',
-  'external/wt/src/examples/onethread/lib':
-    'external/wt/src/examples/onethread',
-  },
+/** @type {Config} */
+let config = {
+  bazelExtBuildDepReplacements: {},
+  bazelSandboxReplacements: {},
+  includePrefixPath: null,
 };
 
 const bazelSandboxRegex = /^\/.+?\/sandbox\/.+?\/execroot\/.+?\/(.+)$/;
@@ -170,24 +164,36 @@ const args = process.argv.slice(2);
 if(!(args.length === 2 || args.length === 3)) {
   throw new Error([
     'Usage: unbox path/to/compile_commands.json',
-    'bazel/workspace/path [include/prefix/path]',
+    'bazel/workspace/path [path/to/unbox.config.json]',
   ].join(' '));
 }
 
 const compileCommandsPath = args[0].replace('~', os.homedir);
 
 if(!fs.existsSync(compileCommandsPath)) {
-  throw Error(`${compileCommandsPath} file does not exist`);
+  throw Error(`${compileCommandsPath} compile commands file does not exist`);
 }
 
 const bazelWorkspacePath = args[1].replace('~', os.homedir);
 
 if(!fs.existsSync(bazelWorkspacePath)) {
-  throw Error(`${bazelWorkspacePath} bazelWorkspacePath does not exist`);
+  throw Error(`${bazelWorkspacePath} bazel workspace path does not exist`);
 }
 
-const includePrefixPath =
-  args[3] === undefined ? null : path.join(args[3], path.sep);
+if(args[2] !== undefined) {
+  const unboxConfigPath = args[2].replace('~', os.homedir);
+
+  if(!fs.existsSync(unboxConfigPath)) {
+    throw Error(`${unboxConfigPath} unbox config does not exist`);
+  }
+
+  const userConfigString = fs.readFileSync(unboxConfigPath, 'utf8');
+
+  /** @type {Config} */
+  const userConfig = JSON.parse(userConfigString);
+
+  config = { ...config, ...userConfig };
+}
 
 const compDbString = fs.readFileSync(compileCommandsPath, 'utf8');
 
@@ -197,14 +203,16 @@ const compDbIn = JSON.parse(compDbString);
 /** @type {CompDbEntry[]} */
 const compDbOut = [];
 
-if(includePrefixPath === null) {
+if(config.includePrefixPath === null) {
   compDbIn.forEach((compDbEntry) => (
     compDbOut.push(unbox(compDbEntry, bazelWorkspacePath))
   ));
 }
 else {
   compDbIn.forEach((compDbEntry) => {
-    if(compDbEntry.file.startsWith(includePrefixPath)) {
+    if(compDbEntry.file.startsWith(
+      /** @type {string} */ (config.includePrefixPath),
+    )) {
       compDbOut.push(unbox(compDbEntry, bazelWorkspacePath));
     }
   });
